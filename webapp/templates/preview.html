@@ -1,0 +1,170 @@
+{% extends "_base.html" %}
+{% block title %}Preview · Resume Tailor{% endblock %}
+{% block content %}
+<div class="h-[calc(100vh-64px-32px)] md:h-[calc(100vh-64px)] flex flex-col md:flex-row gap-4 -mx-margin-mobile md:-mx-margin-desktop">
+  <section class="flex-1 overflow-y-auto custom-scrollbar bg-surface-container-low p-stack-md md:p-stack-lg flex justify-center">
+    <div id="resume-canvas" class="w-full max-w-[850px] bg-white resume-canvas p-10 md:p-16 min-h-[1100px] flex flex-col gap-8">
+      <p class="text-on-surface-variant text-body-sm">Loading tailored resume…</p>
+    </div>
+  </section>
+  <aside class="w-full md:w-[420px] bg-surface-container-lowest md:border-l border-outline-variant flex flex-col">
+    <div class="p-stack-lg flex flex-col gap-stack-lg h-full overflow-y-auto custom-scrollbar">
+      <div class="flex flex-col gap-1">
+        <h3 class="font-headline-md text-headline-md font-bold text-on-background">AI Insights</h3>
+        <p class="font-body-sm text-body-sm text-on-surface-variant">
+          Computed locally from the tailored resume against your job description.
+        </p>
+      </div>
+
+      <div class="bg-surface-container-low rounded-xl p-5 border border-outline-variant shadow-sm">
+        <div class="flex justify-between items-end mb-4">
+          <span class="font-label-md text-label-md font-bold text-on-surface-variant uppercase tracking-wider">Keyword Match</span>
+          <span id="match-score" class="text-[32px] leading-none font-black text-on-tertiary-container">—</span>
+        </div>
+        <div class="w-full bg-outline-variant/30 h-2.5 rounded-full overflow-hidden">
+          <div id="match-bar" class="bg-on-tertiary-container h-full w-0 transition-all duration-1000 ease-out"></div>
+        </div>
+        <p id="match-note" class="mt-4 font-body-sm text-body-sm text-on-surface-variant">Comparing JD keywords against tailored resume…</p>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <h4 class="font-label-md text-label-md font-bold uppercase text-on-surface-variant tracking-wider">Recipient</h4>
+        <div class="p-5 bg-secondary-container/40 rounded-xl border border-secondary-fixed flex items-start gap-3">
+          <span class="material-symbols-outlined text-on-secondary-container">forward_to_inbox</span>
+          <div class="flex-1 min-w-0">
+            <p id="recipient" class="font-label-md text-label-md font-bold text-on-secondary-container break-all">—</p>
+            <p id="company" class="font-body-sm text-body-sm text-on-surface-variant">—</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3">
+        <h4 class="font-label-md text-label-md font-bold uppercase text-on-surface-variant tracking-wider">Status</h4>
+        <div id="status-card" class="p-5 bg-surface-container-lowest border border-outline-variant rounded-xl flex items-center gap-3">
+          <span class="material-symbols-outlined text-on-tertiary-container" style="font-variation-settings: 'FILL' 1;">verified</span>
+          <span id="status-label" class="font-label-md text-label-md font-bold text-on-background">—</span>
+        </div>
+      </div>
+
+      <div class="mt-auto pt-stack-lg flex flex-col gap-3">
+        <a id="review-link" href="#" class="w-full py-4 bg-primary text-on-primary font-label-md text-label-md rounded-xl active:scale-[0.98] transition-all hover:opacity-90 flex items-center justify-center gap-2 shadow-lg">
+          <span class="material-symbols-outlined text-white">send</span>
+          Approve &amp; Continue
+        </a>
+        <a id="pdf-link" href="#" class="w-full py-4 bg-white border border-outline text-on-surface font-label-md text-label-md rounded-xl active:scale-[0.98] transition-all hover:bg-surface-container-low flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined">download</span>
+          Download PDF
+        </a>
+      </div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const JOB_ID = {{ job_id | tojson }};
+
+function renderResume(text, recipient, company) {
+  const canvas = document.getElementById("resume-canvas");
+  // Parse SUMMARY/SKILLS/EXPERIENCE/EDUCATION/PROJECTS/CERTIFICATIONS section style.
+  const HEADINGS = ["SUMMARY", "SKILLS", "EXPERIENCE", "EDUCATION", "PROJECTS", "CERTIFICATIONS"];
+  const lines = text.split(/\r?\n/);
+  const sections = [];
+  let current = { heading: null, lines: [] };
+  for (const raw of lines) {
+    const line = raw.trim();
+    const upper = line.replace(/:$/, "").toUpperCase();
+    if (HEADINGS.includes(upper)) {
+      if (current.heading || current.lines.length) sections.push(current);
+      current = { heading: upper, lines: [] };
+    } else {
+      current.lines.push(line);
+    }
+  }
+  if (current.heading || current.lines.length) sections.push(current);
+
+  const intro = sections.find((s) => s.heading === null);
+  const candidate = (intro?.lines || []).filter(Boolean);
+  const name = candidate[0] || "Tailored Resume";
+  const meta = candidate.slice(1).join(" • ");
+
+  const body = sections
+    .filter((s) => s.heading)
+    .map((s) => {
+      const bullets = s.lines.filter((l) => l.length > 0);
+      const list = bullets
+        .map((l) => {
+          if (l.startsWith("- ") || l.startsWith("* ") || l.startsWith("• ")) {
+            return `<li>${escapeHtml(l.replace(/^[-*•]\s+/, ""))}</li>`;
+          }
+          return `<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">${escapeHtml(l)}</p>`;
+        })
+        .join("");
+      const hasBullets = /<li>/.test(list);
+      return `
+        <section class="flex flex-col gap-3">
+          <h3 class="font-label-md text-label-md font-bold uppercase tracking-widest text-primary border-b border-outline-variant pb-2">${s.heading}</h3>
+          ${hasBullets ? `<ul class="list-disc ml-5 font-body-md text-body-md text-on-surface-variant flex flex-col gap-2">${list}</ul>` : list}
+        </section>`;
+    })
+    .join("");
+
+  canvas.innerHTML = `
+    <div class="flex flex-col gap-2">
+      <h2 class="font-headline-lg text-headline-lg font-extrabold text-on-surface">${escapeHtml(name)}</h2>
+      ${meta ? `<p class="font-label-md text-label-md text-on-surface-variant">${escapeHtml(meta)}</p>` : ""}
+      ${recipient ? `<p class="font-label-sm text-label-sm text-on-surface-variant">Tailored for: <span class="font-bold">${escapeHtml(company || "—")}</span> · ${escapeHtml(recipient)}</p>` : ""}
+    </div>
+    ${body || `<pre class="whitespace-pre-wrap font-body-md text-body-md text-on-surface-variant">${escapeHtml(text)}</pre>`}
+  `;
+}
+
+function computeKeywordMatch(jdText, resumeText) {
+  // Rough word-overlap heuristic, ignoring stopwords.
+  const STOP = new Set(("the,a,an,and,or,for,to,of,in,on,with,by,is,are,be,been,being,as,at,from,that,this,these,those,it,its,we,you,they,we're,they're,not,but,if,then,than,so,will,can,may,have,has,had,was,were,our,your,their,about,across,within,without,using,based,seeking,looking").split(","));
+  function tokens(s) {
+    return new Set((s.toLowerCase().match(/[a-z][a-z0-9+#.\-]{2,}/g) || []).filter((t) => !STOP.has(t)));
+  }
+  const jd = tokens(jdText);
+  const res = tokens(resumeText);
+  if (!jd.size) return { score: 0, matched: 0, total: 0 };
+  let matched = 0;
+  for (const t of jd) if (res.has(t)) matched += 1;
+  return { score: Math.round((matched / jd.size) * 100), matched, total: jd.size };
+}
+
+async function load() {
+  let job;
+  try {
+    job = await API.getJob(JOB_ID);
+  } catch (e) {
+    toast(e.message, "error");
+    return;
+  }
+  if (!["done", "sent"].includes(job.status)) {
+    // Still running - send back to progress page.
+    window.location.href = `/progress/${JOB_ID}`;
+    return;
+  }
+  renderResume(job.resume_text || "", job.recipient, job.company);
+  document.getElementById("recipient").textContent = job.recipient || "—";
+  document.getElementById("company").textContent = job.company || "—";
+  document.getElementById("status-label").innerHTML = statusChip(job.status);
+
+  document.getElementById("review-link").href = `/review/${JOB_ID}`;
+  document.getElementById("pdf-link").href = `/api/jobs/${JOB_ID}/pdf`;
+
+  // We need the JD text for match computation; the API exposes it on the meta file but not on get.
+  // For a UI heuristic we use the resume text against the email subject + body which encodes the JD.
+  const haystack = (job.email_subject || "") + " " + (job.email_body || "");
+  const { score, matched, total } = computeKeywordMatch(haystack, job.resume_text || "");
+  document.getElementById("match-score").textContent = `${score}%`;
+  document.getElementById("match-bar").style.width = `${score}%`;
+  document.getElementById("match-note").textContent =
+    `${matched} of ${total} terms from the application email match your tailored resume.`;
+}
+
+load();
+</script>
+{% endblock %}

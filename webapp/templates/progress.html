@@ -1,0 +1,145 @@
+{% extends "_base.html" %}
+{% block title %}Tailoring · Resume Tailor{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto w-full text-center space-y-stack-lg">
+  <div class="relative flex items-center justify-center mx-auto w-64 h-64">
+    <svg class="absolute inset-0 w-full h-full animate-spin-slow" viewBox="0 0 220 220">
+      <circle class="text-surface-container-highest" cx="110" cy="110" fill="transparent" r="100" stroke="currentColor" stroke-width="4"></circle>
+      <circle id="progress-ring" class="text-tertiary-fixed-dim progress-ring-circle" cx="110" cy="110" fill="transparent" r="100" stroke="currentColor" stroke-linecap="round" stroke-width="4"></circle>
+    </svg>
+    <div class="bg-surface-container-lowest rounded-full w-48 h-48 flex items-center justify-center custom-shadow border border-outline-variant relative z-10">
+      <div class="flex flex-col items-center">
+        <span class="material-symbols-outlined text-primary text-6xl animate-pulse-soft" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+        <div class="mt-stack-sm flex gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-tertiary-fixed-dim dot-1"></span>
+          <span class="w-1.5 h-1.5 rounded-full bg-tertiary-fixed-dim dot-2"></span>
+          <span class="w-1.5 h-1.5 rounded-full bg-tertiary-fixed-dim dot-3"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-stack-sm">
+    <h2 class="font-headline-md text-headline-md text-primary" id="status-title">Optimizing your future</h2>
+    <p class="font-label-md text-label-md text-on-surface-variant" id="status-detail">Initializing…</p>
+    <div class="flex flex-col items-center gap-2 mt-4">
+      <div class="w-full max-w-xs bg-surface-container rounded-full h-1.5 overflow-hidden">
+        <div id="progress-bar" class="bg-primary h-full w-0 rounded-full transition-all duration-500 ease-out"></div>
+      </div>
+      <span class="font-label-sm text-label-sm text-outline" id="step-counter">Step 0 of 6</span>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-stack-md mt-stack-lg text-left" id="step-chips"></div>
+
+  <div id="error-card" class="hidden bg-error-container border border-error rounded-2xl p-stack-lg text-left">
+    <div class="flex items-start gap-3">
+      <span class="material-symbols-outlined text-error">error</span>
+      <div class="flex-1">
+        <p class="font-label-md text-label-md font-bold text-on-error-container">Tailoring stopped</p>
+        <p class="font-body-sm text-body-sm text-on-error-container" id="error-msg"></p>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-stack-md">
+      <a href="/tailor" class="px-4 py-2 rounded-xl bg-on-error text-error border border-error font-label-md text-label-md font-bold">Try again</a>
+      <a href="/" class="px-4 py-2 rounded-xl border border-outline-variant font-label-md text-label-md font-bold">Back to dashboard</a>
+    </div>
+  </div>
+</div>
+
+<footer class="pb-stack-lg pt-stack-md px-margin-mobile flex justify-center">
+  <a href="/" class="flex items-center gap-2 px-8 py-3 rounded-full border border-error text-error font-label-md text-label-md hover:bg-error-container transition-all active:scale-95">
+    <span class="material-symbols-outlined text-[20px]">cancel</span>
+    Abort
+  </a>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const JOB_ID = {{ job_id | tojson }};
+const STEP_NAMES = [
+  ["validate", "Job Description"],
+  ["extract", "Recipient + Company"],
+  ["retrieve", "Resume Chunks (RAG)"],
+  ["tailor", "Tailored Resume"],
+  ["email", "Application Email"],
+  ["render", "PDF Render"],
+];
+
+function renderChips(currentStep, status) {
+  const host = document.getElementById("step-chips");
+  host.innerHTML = STEP_NAMES.map(([key, label], idx) => {
+    let state = "pending";
+    if (idx < currentStep) state = "done";
+    else if (idx === currentStep && status === "running") state = "active";
+    else if (status === "done") state = "done";
+    const icon = state === "done" ? "check_circle" : state === "active" ? "sync" : "pending";
+    const iconClass = state === "done"
+      ? "text-on-tertiary-container"
+      : state === "active" ? "text-primary animate-spin" : "text-outline";
+    const cardClass = state === "active"
+      ? "bg-surface-container-lowest border-primary shadow-md"
+      : state === "done" ? "bg-surface-container-low border-outline-variant" : "bg-surface-container-low border-outline-variant opacity-60";
+    return `
+      <div class="p-stack-md ${cardClass} rounded-xl border flex items-start gap-3">
+        <span class="material-symbols-outlined ${iconClass}" ${state === "done" ? "style=\"font-variation-settings: 'FILL' 1;\"" : ""}>${icon}</span>
+        <div>
+          <p class="font-label-sm text-label-sm ${state === "pending" ? "text-outline" : "text-primary"}">${label}</p>
+          <p class="text-[11px] leading-tight text-on-surface-variant">${state === "done" ? "Complete." : state === "active" ? "In progress…" : "Pending."}</p>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function setRing(percent) {
+  const circle = document.getElementById("progress-ring");
+  const C = 2 * Math.PI * 100;
+  circle.setAttribute("stroke-dasharray", String(C));
+  circle.style.strokeDashoffset = String(C * (1 - percent));
+}
+
+async function poll() {
+  let done = false;
+  while (!done) {
+    let job;
+    try {
+      job = await API.getJob(JOB_ID);
+    } catch (e) {
+      toast(e.message, "error");
+      await sleep(2000);
+      continue;
+    }
+    const total = job.total_steps;
+    const step = job.step;
+    const pct = Math.max(0.02, Math.min(1, step / total));
+    setRing(pct);
+    document.getElementById("progress-bar").style.width = `${pct * 100}%`;
+    document.getElementById("step-counter").textContent = `Step ${Math.min(step + 1, total)} of ${total}`;
+    document.getElementById("status-detail").textContent = job.step_label || job.status;
+
+    renderChips(step, job.status);
+
+    if (job.status === "done") {
+      document.getElementById("status-title").textContent = "Tailoring complete";
+      setRing(1);
+      document.getElementById("progress-bar").style.width = "100%";
+      await sleep(800);
+      window.location.href = `/review/${JOB_ID}`;
+      return;
+    }
+    if (job.status === "error" || job.status === "rejected") {
+      document.getElementById("status-title").textContent =
+        job.status === "rejected" ? "Input rejected" : "Tailoring stopped";
+      document.getElementById("error-card").classList.remove("hidden");
+      document.getElementById("error-msg").textContent = job.error || "Unknown error";
+      return;
+    }
+    await sleep(1000);
+  }
+}
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+poll();
+</script>
+{% endblock %}

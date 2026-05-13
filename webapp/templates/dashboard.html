@@ -1,0 +1,234 @@
+{% extends "_base.html" %}
+{% block title %}Dashboard · Resume Tailor{% endblock %}
+{% block content %}
+<section class="relative overflow-hidden bg-primary-container rounded-3xl p-10 mb-stack-lg text-on-primary min-h-[320px] flex flex-col justify-center">
+  <div class="absolute right-0 top-0 w-1/2 h-full opacity-10 pointer-events-none">
+    <svg viewBox="0 0 200 200" class="w-full h-full">
+      <defs>
+        <linearGradient id="welcome-glow" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#bec6e0" stop-opacity="0.8"/>
+          <stop offset="100%" stop-color="#4ae176" stop-opacity="0.4"/>
+        </linearGradient>
+      </defs>
+      <circle cx="160" cy="60" r="80" fill="url(#welcome-glow)"/>
+      <circle cx="100" cy="180" r="60" fill="url(#welcome-glow)"/>
+    </svg>
+  </div>
+  <div class="relative z-10 max-w-2xl">
+    <h1 class="font-display-lg text-display-lg mb-4 text-white">Welcome back.</h1>
+    <p class="font-body-lg text-body-lg text-on-primary-container mb-8">
+      Paste a job description and your resume will be tailored, packaged as a clean PDF, and routed to the hiring contact via the MCP email server.
+    </p>
+    <a href="/tailor" class="bg-on-tertiary-container text-on-tertiary px-8 py-4 rounded-xl font-label-md text-label-md font-bold flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all inline-flex w-fit">
+      <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+      Tailor New Resume
+    </a>
+  </div>
+</section>
+
+<section class="grid grid-cols-1 md:grid-cols-2 gap-gutter mb-stack-lg">
+  <div class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant custom-shadow flex flex-col gap-4">
+    <div class="flex items-center gap-3">
+      <div class="p-3 bg-surface-container-low rounded-xl">
+        <span class="material-symbols-outlined text-primary">upload_file</span>
+      </div>
+      <div>
+        <h3 class="font-label-md text-label-md font-bold text-on-surface">Source Resume</h3>
+        <p class="font-body-sm text-body-sm text-on-surface-variant" id="resume-state">Checking…</p>
+      </div>
+    </div>
+    <p class="font-body-sm text-body-sm text-on-surface-variant">
+      Upload a new <code class="px-1 bg-surface-container rounded text-label-sm">resume.pdf</code> and re-index it so future tailoring runs see the latest content.
+    </p>
+    <div class="flex flex-wrap gap-2">
+      <label class="flex items-center gap-2 px-3 py-2 rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors font-label-md text-label-md cursor-pointer">
+        <span class="material-symbols-outlined text-[18px]">upload</span>
+        Upload resume.pdf
+        <input id="dash-resume-upload" type="file" accept="application/pdf" class="hidden"/>
+      </label>
+      <button id="dash-reindex-btn" class="flex items-center gap-2 px-3 py-2 rounded-xl border border-outline-variant hover:bg-surface-container-low transition-colors font-label-md text-label-md">
+        <span class="material-symbols-outlined text-[18px]">refresh</span>
+        Re-index
+      </button>
+    </div>
+  </div>
+  <div class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant custom-shadow flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div class="p-3 bg-surface-container-low rounded-xl">
+        <span class="material-symbols-outlined text-primary">verified</span>
+      </div>
+      <span class="chip optimized" id="stat-health">Optimal</span>
+    </div>
+    <div>
+      <p class="font-label-md text-label-md text-on-surface-variant">Service Health</p>
+      <h3 class="font-headline-lg text-headline-lg text-on-surface mt-1" id="stat-health-num">—</h3>
+    </div>
+    <p class="font-body-sm text-body-sm text-outline" id="stat-health-detail">Checking Qdrant, Ollama, resume.pdf…</p>
+  </div>
+</section>
+
+<section class="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-stack-lg">
+  <div class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant custom-shadow flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div class="p-3 bg-surface-container-low rounded-xl">
+        <span class="material-symbols-outlined text-primary">history</span>
+      </div>
+      <span class="chip optimized" id="stat-sent">0 sent</span>
+    </div>
+    <div>
+      <p class="font-label-md text-label-md text-on-surface-variant">Total Tailored</p>
+      <h3 class="font-headline-lg text-headline-lg text-on-surface mt-1" id="stat-total">0</h3>
+    </div>
+    <p class="font-body-sm text-body-sm text-outline">All tailoring runs to date</p>
+  </div>
+  <div class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant custom-shadow flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div class="p-3 bg-surface-container-low rounded-xl">
+        <span class="material-symbols-outlined text-primary">pending_actions</span>
+      </div>
+      <span class="chip draft" id="stat-drafts">0 drafts</span>
+    </div>
+    <div>
+      <p class="font-label-md text-label-md text-on-surface-variant">Drafts</p>
+      <h3 class="font-headline-lg text-headline-lg text-on-surface mt-1" id="stat-draft-count">0</h3>
+    </div>
+    <p class="font-body-sm text-body-sm text-outline">Tailored but not yet sent</p>
+  </div>
+  <div class="bg-surface-container-lowest p-6 rounded-2xl border border-outline-variant custom-shadow flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div class="p-3 bg-surface-container-low rounded-xl">
+        <span class="material-symbols-outlined text-primary">check_circle</span>
+      </div>
+      <span class="chip optimized" id="stat-success">100%</span>
+    </div>
+    <div>
+      <p class="font-label-md text-label-md text-on-surface-variant">Sent Successfully</p>
+      <h3 class="font-headline-lg text-headline-lg text-on-surface mt-1" id="stat-success-count">0</h3>
+    </div>
+    <p class="font-body-sm text-body-sm text-outline">Applications delivered via MCP</p>
+  </div>
+</section>
+
+<section class="bg-surface-container-lowest rounded-3xl border border-outline-variant custom-shadow overflow-hidden">
+  <div class="px-6 py-6 border-b border-outline-variant flex items-center justify-between">
+    <h2 class="font-headline-md text-headline-md text-on-surface">Recent Activity</h2>
+    <a href="/history" class="text-primary font-label-md text-label-md hover:underline font-bold">View All History</a>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="w-full text-left">
+      <thead>
+        <tr class="bg-surface-container-low border-b border-outline-variant">
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Role / JD</th>
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Company</th>
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Recipient</th>
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Status</th>
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-outline-variant" id="recent-rows">
+        <tr><td colspan="5" class="px-6 py-10 text-center text-on-surface-variant">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadDashboard() {
+  try {
+    const [{ jobs }, health] = await Promise.all([API.listJobs(), API.health()]);
+
+    const total = jobs.length;
+    const sent = jobs.filter((j) => j.status === "sent").length;
+    const drafts = jobs.filter((j) => j.status === "done").length;
+    document.getElementById("stat-total").textContent = total;
+    document.getElementById("stat-sent").textContent = `${sent} sent`;
+    document.getElementById("stat-drafts").textContent = `${drafts} drafts`;
+    document.getElementById("stat-draft-count").textContent = drafts;
+    document.getElementById("stat-success-count").textContent = sent;
+    document.getElementById("stat-success").textContent =
+      total > 0 ? `${Math.round((sent / total) * 100)}%` : "—";
+
+    const healthOk = health.ok && health.qdrant && health.ollama_model_ready && health.resume_pdf_exists;
+    document.getElementById("stat-health").textContent = healthOk ? "Optimal" : "Attention";
+    document.getElementById("stat-health").className = "chip " + (healthOk ? "optimized" : "error");
+    document.getElementById("stat-health-num").textContent = healthOk ? "Ready" : "Issue";
+    document.getElementById("stat-health-detail").textContent =
+      `Qdrant: ${health.qdrant ? "ok" : "down"} · Ollama model: ${health.ollama_model_ready ? "ready" : "missing"} · resume.pdf: ${health.resume_pdf_exists ? "ok" : "missing"}`;
+
+    document.getElementById("resume-state").textContent =
+      health.resume_pdf_exists ? "resume.pdf is present in the project root." : "No resume.pdf yet — upload one to get started.";
+
+    const rows = document.getElementById("recent-rows");
+    if (!jobs.length) {
+      rows.innerHTML = `<tr><td colspan="5" class="px-6 py-10 text-center text-on-surface-variant">No jobs yet. <a href="/tailor" class="text-primary font-bold hover:underline">Start tailoring</a>.</td></tr>`;
+      return;
+    }
+    const recent = jobs.slice(0, 5);
+    rows.innerHTML = recent.map((j) => `
+      <tr class="hover:bg-surface-container-low transition-colors">
+        <td class="px-6 py-5">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-12 bg-surface-container rounded-lg flex items-center justify-center">
+              <span class="material-symbols-outlined text-primary">description</span>
+            </div>
+            <div>
+              <p class="font-label-md text-label-md text-on-surface font-bold">${escapeHtml(j.email_subject || "Tailored Resume")}</p>
+              <p class="font-body-sm text-body-sm text-outline">Modified ${fmtDate(j.updated_at)}</p>
+            </div>
+          </div>
+        </td>
+        <td class="px-6 py-5 font-body-md text-body-md text-on-surface">${escapeHtml(j.company || "—")}</td>
+        <td class="px-6 py-5 font-body-sm text-body-sm text-on-surface-variant">${escapeHtml(j.recipient || "—")}</td>
+        <td class="px-6 py-5">${statusChip(j.status)}</td>
+        <td class="px-6 py-5 text-right">
+          <div class="flex justify-end gap-2">
+            ${j.status === "done" || j.status === "sent"
+              ? `<a href="/preview/${j.id}" class="px-3 py-1.5 rounded-lg border border-outline-variant text-label-sm font-bold hover:bg-surface-container-low">Preview</a>`
+              : ""}
+            ${j.status === "done"
+              ? `<a href="/review/${j.id}" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-label-sm font-bold hover:opacity-90">Review</a>`
+              : ""}
+            ${j.status === "running" || j.status === "pending"
+              ? `<a href="/progress/${j.id}" class="px-3 py-1.5 rounded-lg bg-secondary-container text-on-secondary-container text-label-sm font-bold">Watch</a>`
+              : ""}
+          </div>
+        </td>
+      </tr>
+    `).join("");
+  } catch (e) {
+    toast("Failed to load dashboard: " + e.message, "error");
+  }
+}
+loadDashboard();
+
+document.getElementById("dash-resume-upload").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const label = document.getElementById("resume-state");
+  label.textContent = "Uploading…";
+  try {
+    const r = await API.uploadResume(file);
+    label.textContent = `Uploaded ${(r.size / 1024).toFixed(1)} KB — click Re-index to refresh Qdrant.`;
+    toast("Resume uploaded. Re-index next.", "success");
+  } catch (err) {
+    toast(err.message, "error");
+    loadDashboard();
+  }
+});
+
+document.getElementById("dash-reindex-btn").addEventListener("click", async () => {
+  const label = document.getElementById("resume-state");
+  label.textContent = "Re-indexing… (may take ~30s)";
+  try {
+    await API.ingest();
+    toast("Resume re-indexed into Qdrant.", "success");
+    loadDashboard();
+  } catch (e) {
+    toast(e.message, "error");
+    loadDashboard();
+  }
+});
+</script>
+{% endblock %}

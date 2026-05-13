@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>{% block title %}Resume Tailor{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+  <script src="/static/js/tailwind-config.js"></script>
+  <link rel="stylesheet" href="/static/css/app.css" />
+  {% block head_extra %}{% endblock %}
+</head>
+<body class="bg-background text-on-background min-h-screen">
+  {% if not no_chrome %}
+  <header class="fixed top-0 w-full bg-surface-container-lowest border-b border-outline-variant z-50">
+    <div class="flex items-center justify-between px-margin-mobile md:px-margin-desktop h-16 w-full">
+      <div class="flex items-center gap-4">
+        <a href="/" class="font-headline-lg text-headline-lg font-bold text-primary">Resume Tailor</a>
+      </div>
+      <nav class="hidden md:flex items-center gap-stack-lg">
+        <a class="{% if page == 'dashboard' %}text-primary font-bold{% else %}text-on-surface-variant hover:text-primary{% endif %} font-label-md text-label-md transition-colors px-2" href="/">Dashboard</a>
+        <a class="{% if page == 'tailor' %}text-primary font-bold{% else %}text-on-surface-variant hover:text-primary{% endif %} font-label-md text-label-md transition-colors px-2" href="/tailor">Tailor</a>
+        <a class="{% if page == 'preview' %}text-primary font-bold{% else %}text-on-surface-variant hover:text-primary{% endif %} font-label-md text-label-md transition-colors px-2" href="#" onclick="goLatestPreview(event)">Preview</a>
+        <a class="{% if page == 'history' %}text-primary font-bold{% else %}text-on-surface-variant hover:text-primary{% endif %} font-label-md text-label-md transition-colors px-2" href="/history">History</a>
+      </nav>
+      <div class="flex items-center gap-4">
+        <button id="health-pill" class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-low text-label-sm font-label-sm border border-outline-variant hover:bg-surface-container transition-colors" title="Service health">
+          <span class="w-2 h-2 rounded-full bg-outline" id="health-dot"></span>
+          <span id="health-text" class="text-on-surface-variant">Checking…</span>
+        </button>
+        <div class="w-10 h-10 rounded-full bg-surface-container-highest border border-outline-variant flex items-center justify-center text-on-surface-variant font-bold">RT</div>
+      </div>
+    </div>
+  </header>
+  {% endif %}
+
+  <div class="{% if not no_chrome %}flex pt-16 min-h-screen{% else %}min-h-screen{% endif %}">
+    {% if not no_chrome %}
+    <aside class="hidden md:flex flex-col w-64 bg-surface-container-lowest border-r border-outline-variant p-stack-md sticky top-16 h-[calc(100vh-64px)]">
+      <div class="flex flex-col gap-unit">
+        <a class="flex items-center gap-4 px-4 py-3 {% if page == 'dashboard' %}sidebar-active{% else %}text-on-surface-variant hover:bg-surface-container-low{% endif %} transition-all rounded-xl font-label-md text-label-md" href="/">
+          <span class="material-symbols-outlined">dashboard</span>
+          Dashboard
+        </a>
+        <a class="flex items-center gap-4 px-4 py-3 {% if page == 'tailor' %}sidebar-active{% else %}text-on-surface-variant hover:bg-surface-container-low{% endif %} transition-all rounded-xl font-label-md text-label-md" href="/tailor">
+          <span class="material-symbols-outlined">auto_awesome</span>
+          Tailor
+        </a>
+        <a class="flex items-center gap-4 px-4 py-3 {% if page == 'preview' %}sidebar-active{% else %}text-on-surface-variant hover:bg-surface-container-low{% endif %} transition-all rounded-xl font-label-md text-label-md" href="#" onclick="goLatestPreview(event)">
+          <span class="material-symbols-outlined">description</span>
+          Preview
+        </a>
+        <a class="flex items-center gap-4 px-4 py-3 {% if page == 'history' %}sidebar-active{% else %}text-on-surface-variant hover:bg-surface-container-low{% endif %} transition-all rounded-xl font-label-md text-label-md" href="/history">
+          <span class="material-symbols-outlined">history</span>
+          History
+        </a>
+      </div>
+      <div class="mt-auto pt-stack-lg border-t border-outline-variant">
+        <div class="p-4 bg-surface-container-low rounded-xl">
+          <p class="font-label-sm text-label-sm text-on-surface-variant mb-3 uppercase tracking-wider">Pipeline</p>
+          <ul class="flex flex-col gap-1.5 text-label-sm">
+            <li class="flex items-center gap-2"><span class="material-symbols-outlined text-on-tertiary-container text-[16px]">check_circle</span> phi4-mini</li>
+            <li class="flex items-center gap-2"><span class="material-symbols-outlined text-on-tertiary-container text-[16px]">check_circle</span> Qdrant RAG</li>
+            <li class="flex items-center gap-2"><span class="material-symbols-outlined text-on-tertiary-container text-[16px]">check_circle</span> MCP email</li>
+          </ul>
+        </div>
+      </div>
+    </aside>
+    {% endif %}
+
+    <main class="{% if no_chrome %}w-full{% else %}flex-1 px-margin-mobile md:px-margin-desktop py-stack-lg max-w-container-max mx-auto w-full pb-32 md:pb-stack-lg{% endif %}">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  {% if not no_chrome %}
+  <nav class="md:hidden fixed bottom-0 left-0 w-full z-50 bg-surface-container-lowest shadow-[0_-4px_12px_rgba(15,23,42,0.08)] flex justify-around items-center py-3 px-4 pb-safe border-t border-outline-variant">
+    <a class="flex flex-col items-center justify-center {% if page == 'dashboard' %}text-primary{% else %}text-on-surface-variant{% endif %} px-5 py-1" href="/">
+      <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' {% if page == 'dashboard' %}1{% else %}0{% endif %};">dashboard</span>
+      <span class="font-label-sm text-label-sm {% if page == 'dashboard' %}font-bold{% endif %}">Dashboard</span>
+    </a>
+    <a class="flex flex-col items-center justify-center {% if page == 'tailor' %}text-primary{% else %}text-on-surface-variant{% endif %} px-5 py-1" href="/tailor">
+      <span class="material-symbols-outlined">auto_awesome</span>
+      <span class="font-label-sm text-label-sm">Tailor</span>
+    </a>
+    <a class="flex flex-col items-center justify-center {% if page == 'preview' %}text-primary{% else %}text-on-surface-variant{% endif %} px-5 py-1" href="#" onclick="goLatestPreview(event)">
+      <span class="material-symbols-outlined">description</span>
+      <span class="font-label-sm text-label-sm">Preview</span>
+    </a>
+    <a class="flex flex-col items-center justify-center {% if page == 'history' %}text-primary{% else %}text-on-surface-variant{% endif %} px-5 py-1" href="/history">
+      <span class="material-symbols-outlined">history</span>
+      <span class="font-label-sm text-label-sm">History</span>
+    </a>
+  </nav>
+  {% endif %}
+
+  <div id="toast-host" class="fixed top-20 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

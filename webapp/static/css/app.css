@@ -1,0 +1,96 @@
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+.custom-shadow {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.sidebar-active {
+  background-color: #dae2fd;
+  color: #131b2e;
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #c6c6cd; border-radius: 10px; }
+
+.resume-canvas {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 1);
+  border: 1px solid #e5eeff;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow { animation: spin-slow 3s linear infinite; }
+
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+.animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+
+@keyframes dot-flash {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+.dot-1 { animation: dot-flash 1.5s infinite 0s; }
+.dot-2 { animation: dot-flash 1.5s infinite 0.3s; }
+.dot-3 { animation: dot-flash 1.5s infinite 0.6s; }
+
+.progress-ring-circle {
+  stroke-dasharray: 628.318;
+  stroke-dashoffset: 440;
+  transition: stroke-dashoffset 0.35s;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.toast {
+  background: #ffffff;
+  border: 1px solid #c6c6cd;
+  border-radius: 0.75rem;
+  padding: 12px 16px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  max-width: 360px;
+  pointer-events: auto;
+  animation: slide-in 0.2s ease-out;
+}
+.toast.error { border-color: #ba1a1a; background: #ffdad6; color: #93000a; }
+.toast.success { border-color: #009844; }
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+}
+.chip.optimized { background-color: #6bff8f; color: #005321; }
+.chip.draft     { background-color: #d5e3fd; color: #57657b; }
+.chip.sent      { background-color: #131b2e; color: #ffffff; }
+.chip.running   { background-color: #dae2fd; color: #131b2e; }
+.chip.pending   { background-color: #e5eeff; color: #45464d; }
+.chip.error     { background-color: #ffdad6; color: #93000a; }
+.chip.rejected  { background-color: #ffdad6; color: #93000a; }

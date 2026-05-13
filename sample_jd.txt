@@ -1,0 +1,36 @@
+Senior Software Engineer — Backend / Platform
+
+Company: Ceegees Software
+
+About the role:
+We are hiring a Senior Software Engineer to join our backend platform team.
+You will design, build, and operate distributed services that power our
+product. The role involves close collaboration with frontend, infrastructure,
+and product teams.
+
+Responsibilities:
+- Design and implement scalable backend services and REST/GraphQL APIs.
+- Improve performance, reliability, and observability of production systems.
+- Work with relational and NoSQL databases; design schemas and queries.
+- Build and maintain CI/CD pipelines and deployment automation.
+- Mentor junior engineers and participate in code reviews.
+
+Qualifications:
+- 4+ years of experience building backend services in production.
+- Strong proficiency in Python, Node.js, or Go.
+- Solid experience with PostgreSQL or MongoDB.
+- Familiarity with Docker, Kubernetes, and cloud platforms (AWS / GCP).
+- Experience with message queues (RabbitMQ, Kafka) is a plus.
+- Good written and verbal communication skills.
+
+Nice to have:
+- Experience with LLM-based tools or vector databases (Qdrant, Pinecone).
+- Contributions to open source projects.
+
+Benefits:
+- Competitive salary
+- Health insurance
+- Flexible work-from-home policy
+
+To apply, send your resume to sanil@ceegees.in with the subject line
+"Senior Software Engineer Application".

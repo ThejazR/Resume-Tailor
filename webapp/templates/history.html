@@ -1,0 +1,85 @@
+{% extends "_base.html" %}
+{% block title %}History · Resume Tailor{% endblock %}
+{% block content %}
+<header class="flex items-center justify-between mb-stack-lg">
+  <div>
+    <h1 class="font-headline-lg text-headline-lg text-primary">All Tailoring Runs</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant">Every job persists under <code class="px-1 bg-surface-container rounded text-label-sm">out/jobs/&lt;id&gt;/</code>.</p>
+  </div>
+  <a href="/tailor" class="px-6 py-3 bg-primary text-on-primary rounded-xl font-bold flex items-center gap-2 hover:opacity-90">
+    <span class="material-symbols-outlined">add</span>
+    New
+  </a>
+</header>
+
+<section class="bg-surface-container-lowest rounded-3xl border border-outline-variant custom-shadow overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left">
+      <thead>
+        <tr class="bg-surface-container-low border-b border-outline-variant">
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Subject</th>
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Company</th>
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Recipient</th>
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Created</th>
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Status</th>
+          <th class="px-6 py-4 font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-outline-variant" id="rows">
+        <tr><td colspan="6" class="px-6 py-10 text-center text-on-surface-variant">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function load() {
+  try {
+    const { jobs } = await API.listJobs();
+    const tbody = document.getElementById("rows");
+    if (!jobs.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-10 text-center text-on-surface-variant">No history yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = jobs.map((j) => `
+      <tr class="hover:bg-surface-container-low transition-colors">
+        <td class="px-6 py-4">
+          <p class="font-label-md text-label-md font-bold text-on-surface">${escapeHtml(j.email_subject || "(in progress)")}</p>
+          <p class="font-body-sm text-body-sm text-outline">${escapeHtml(j.id)}</p>
+        </td>
+        <td class="px-6 py-4 font-body-md text-body-md">${escapeHtml(j.company || "—")}</td>
+        <td class="px-6 py-4 font-body-sm text-body-sm text-on-surface-variant">${escapeHtml(j.recipient || "—")}</td>
+        <td class="px-6 py-4 font-body-sm text-body-sm text-on-surface-variant">${fmtDate(j.created_at)}</td>
+        <td class="px-6 py-4">${statusChip(j.status)}</td>
+        <td class="px-6 py-4 text-right">
+          <div class="flex justify-end gap-2 flex-wrap">
+            ${j.has_pdf ? `<a href="/api/jobs/${j.id}/pdf" class="px-3 py-1.5 rounded-lg border border-outline-variant text-label-sm font-bold hover:bg-surface-container-low">PDF</a>` : ""}
+            ${["done", "sent"].includes(j.status) ? `<a href="/preview/${j.id}" class="px-3 py-1.5 rounded-lg border border-outline-variant text-label-sm font-bold hover:bg-surface-container-low">Preview</a>` : ""}
+            ${j.status === "done" ? `<a href="/review/${j.id}" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-label-sm font-bold">Review</a>` : ""}
+            ${["running", "pending"].includes(j.status) ? `<a href="/progress/${j.id}" class="px-3 py-1.5 rounded-lg bg-secondary-container text-on-secondary-container text-label-sm font-bold">Watch</a>` : ""}
+            <button data-id="${j.id}" class="px-3 py-1.5 rounded-lg border border-error text-error text-label-sm font-bold hover:bg-error-container delete-btn">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
+    tbody.querySelectorAll(".delete-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!confirm("Delete this job and its PDF?")) return;
+        try {
+          await API.deleteJob(btn.dataset.id);
+          toast("Deleted.", "success");
+          load();
+        } catch (e) {
+          toast(e.message, "error");
+        }
+      });
+    });
+  } catch (e) {
+    toast(e.message, "error");
+  }
+}
+load();
+</script>
+{% endblock %}
