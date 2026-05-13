@@ -27,6 +27,8 @@ app.mount("/static", StaticFiles(directory=str(WEBAPP_DIR / "static")), name="st
 
 class SubmitBody(BaseModel):
     jd: str
+    recipient: str | None = None
+    ats: bool = False
 
 
 class SendBody(BaseModel):
@@ -53,11 +55,13 @@ def _job_payload(job: jobs.Job) -> dict[str, Any]:
         "total_steps": jobs.total_steps(),
         "step_label": job.step_label,
         "error": job.error,
+        "jd": job.jd,
         "recipient": job.recipient,
         "company": job.company,
         "email_subject": job.email_subject,
         "email_body": job.email_body,
         "resume_text": job.resume_text,
+        "ats": job.ats,
         "created_at": job.created_at,
         "updated_at": job.updated_at,
         "sent_at": job.sent_at,
@@ -116,7 +120,8 @@ async def api_create_job(payload: SubmitBody):
     jd = (payload.jd or "").strip()
     if not jd:
         raise HTTPException(400, detail="jd is required")
-    job = jobs.submit(jd)
+    recipient = (payload.recipient or "").strip() or None
+    job = jobs.submit(jd, recipient=recipient, ats=payload.ats)
     return _job_payload(job)
 
 

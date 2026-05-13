@@ -1,7 +1,56 @@
 """phi4-mini prompts: tailor the resume and compose a short cover-letter email."""
 import ollama
 
-from src.config import OLLAMA_MODEL
+from src.config import OLLAMA_MODEL, RESUME_PDF, SMTP_FROM_NAME
+
+_NAME_PLACEHOLDER = "<Candidate Name>"
+
+
+_PDF_HEADINGS = {
+    "SUMMARY", "PROFESSIONAL SUMMARY", "PROFILE", "OBJECTIVE",
+    "SKILLS", "TECHNICAL SKILLS", "CORE SKILLS",
+    "EXPERIENCE", "PROFESSIONAL EXPERIENCE", "WORK EXPERIENCE",
+    "EDUCATION", "PROJECTS", "KEY PROJECTS",
+    "CERTIFICATIONS", "ACHIEVEMENTS", "AWARDS",
+    "CORE IMPACT", "ADVANCED STRENGTHS",
+}
+
+
+def _read_resume_pdf() -> str:
+    """Return the raw resume.pdf text in document order. Used as a tailor fallback
+    when the LLM produces empty output — chunks from Qdrant are ranked by
+    similarity, not document order, so concatenating them yields garbled output."""
+    try:
+        from pypdf import PdfReader
+        if not RESUME_PDF.exists():
+            return ""
+        reader = PdfReader(str(RESUME_PDF))
+        parts: list[str] = []
+        for page in reader.pages:
+            extracted = (page.extract_text() or "").strip()
+            if extracted:
+                parts.append(extracted)
+        return "\n".join(parts).strip()
+    except Exception:
+        return ""
+
+
+def _extract_header_from_pdf() -> tuple[str, str]:
+    """Extract (name, contact_line) from the first few non-empty lines of resume.pdf
+    so the LLM-tailored resume can be re-headed with the candidate's real details
+    when the model omits them."""
+    raw = _read_resume_pdf()
+    if not raw:
+        return ("", "")
+    lines = [l.strip() for l in raw.splitlines() if l.strip()]
+    name = lines[0] if lines else ""
+    contact_lines: list[str] = []
+    for l in lines[1:6]:
+        if l.upper().rstrip(":") in _PDF_HEADINGS:
+            break
+        contact_lines.append(l)
+    contact = " | ".join(s for s in contact_lines if s)
+    return (name, contact)
 
 TAILOR_SYSTEM = """You are a resume tailoring assistant. You ONLY rewrite the
 candidate's existing resume to better match a job description.
@@ -54,6 +103,19 @@ def _chat(system: str, user: str) -> str:
     return resp["message"]["content"].strip()
 
 
+_FALLBACK_EMAIL_BODY = """Hi,
+
+I'd like to apply for the role at {company}. Based on the job description, my
+background looks like a good fit and I'd welcome the chance to discuss the
+opportunity in more detail.
+
+My tailored resume is attached for your review. Please let me know if there's
+a convenient time to connect.
+
+Best regards,
+<Candidate Name>"""
+
+
 def tailor(resume_chunks: list[str], jd: str) -> str:
     user = (
         "RESUME CHUNKS (the only source of truth about the candidate):\n"
@@ -66,23 +128,62 @@ def tailor(resume_chunks: list[str], jd: str) -> str:
     out = _chat(TAILOR_SYSTEM, user)
     if out.startswith("REFUSED:"):
         raise RuntimeError(out)
+    # Fall back to the raw resume content if the model returned (near-)empty
+    # output, so the rendered PDF is never blank. Prefer the full PDF (document
+    # order) over Qdrant chunks (retrieval order, which produces a garbled doc).
+    if len(out.strip()) < 100:
+        raw = _read_resume_pdf()
+        if raw:
+            return raw
+        return "\n\n".join(c for c in resume_chunks if c).strip()
+    # Prepend the candidate's name + contact line if the LLM omitted them
+    # (phi4-mini often jumps straight into a SUMMARY heading without a header).
+    name, contact = _extract_header_from_pdf()
+    head = out[:200].upper()
+    name_present = name and name.upper() in head
+    smtp_present = SMTP_FROM_NAME and SMTP_FROM_NAME.upper() in head
+    if name and not (name_present or smtp_present):
+        header = name + ("\n" + contact if contact else "")
+        out = f"{header}\n\n{out}"
     return out
+
+
+def _substitute_name(body: str) -> str:
+    """Replace the <Candidate Name> placeholder with SMTP_FROM_NAME if configured."""
+    if not SMTP_FROM_NAME:
+        return body
+    return body.replace(_NAME_PLACEHOLDER, SMTP_FROM_NAME)
 
 
 def compose_email_body(jd: str, company: str | None) -> tuple[str, str]:
     company_line = company if company else "your team"
-    user = (
+    out = _chat(EMAIL_SYSTEM, (
         f"Company: {company_line}\n\nJOB DESCRIPTION:\n{jd}\n\n"
         "Write the application email."
-    )
-    out = _chat(EMAIL_SYSTEM, user)
+    ))
     if out.startswith("REFUSED:"):
         raise RuntimeError(out)
-    if "---" not in out:
-        # Model didn't follow format — fall back to a safe split.
-        lines = out.splitlines()
-        subject = lines[0].strip() if lines else f"Application for role at {company_line}"
-        body = "\n".join(lines[1:]).strip() or out
-        return subject, body
-    subject_part, _, body_part = out.partition("---")
-    return subject_part.strip(), body_part.strip()
+
+    default_subject = f"Application for role at {company_line}"
+    default_body = _FALLBACK_EMAIL_BODY.format(company=company_line)
+
+    if not out.strip():
+        return default_subject, _substitute_name(default_body)
+
+    if "---" in out:
+        subject_part, _, body_part = out.partition("---")
+        subject = subject_part.strip() or default_subject
+        body = body_part.strip() or default_body
+        return subject, _substitute_name(body)
+
+    # Model didn't follow the '---' format — best-effort split on first newline.
+    lines = [l for l in out.splitlines() if l.strip()]
+    if not lines:
+        return default_subject, _substitute_name(default_body)
+    subject = lines[0].strip() or default_subject
+    body = "\n".join(lines[1:]).strip()
+    if not body:
+        # Single-line output: keep it as the body, use default subject.
+        body = lines[0].strip() if len(lines) == 1 else default_body
+        subject = default_subject
+    return subject, _substitute_name(body)

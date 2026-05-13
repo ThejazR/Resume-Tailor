@@ -21,7 +21,7 @@ COMPANY_SYSTEM = (
 )
 
 
-def _pick_email(text: str) -> str:
+def pick_email(text: str) -> str:
     found = EMAIL_RE.findall(text)
     if not found:
         raise NoRecipientFound("No email address found in job description.")
@@ -33,7 +33,7 @@ def _pick_email(text: str) -> str:
     )
 
 
-def _guess_company(text: str) -> str | None:
+def guess_company(text: str) -> str | None:
     snippet = text[:2000]
     resp = ollama.chat(
         model=OLLAMA_MODEL,
@@ -50,6 +50,6 @@ def _guess_company(text: str) -> str | None:
 
 
 def extract_recipient(jd: str) -> tuple[str, str | None]:
-    email = _pick_email(jd)
-    company = _guess_company(jd)
+    email = pick_email(jd)
+    company = guess_company(jd)
     return email, company

@@ -27,6 +27,23 @@
     </div>
   </section>
 
+  <section class="bg-surface-container-lowest rounded-2xl border border-outline-variant custom-shadow p-stack-lg flex flex-col gap-3">
+    <label class="font-label-md text-label-md font-bold text-on-surface" for="recipient-input">Recipient email</label>
+    <p class="font-body-sm text-body-sm text-on-surface-variant">Auto-filled from the JD if present. Edit to send to a different address.</p>
+    <input id="recipient-input" type="email" autocomplete="off" placeholder="recruiter@company.com" class="w-full border border-outline-variant rounded-xl px-4 py-3 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"/>
+    <span id="recipient-hint" class="font-label-sm text-label-sm text-on-surface-variant"></span>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl border border-outline-variant custom-shadow p-stack-lg">
+    <label class="flex items-start gap-3 cursor-pointer">
+      <input id="ats-toggle" type="checkbox" class="mt-1 w-5 h-5 accent-primary rounded shrink-0"/>
+      <span class="flex flex-col gap-1">
+        <span class="font-label-md text-label-md font-bold text-on-surface">ATS-friendly PDF</span>
+        <span class="font-body-sm text-body-sm text-on-surface-variant">Single-column plain text, Helvetica only, normalized bullets — what Workday / Greenhouse / Lever parse cleanly. Recommended when applying through an applicant tracking system. You can also change this later on the review page.</span>
+      </span>
+    </label>
+  </section>
+
   <section class="bg-surface-container-low rounded-2xl border border-outline-variant p-stack-lg flex flex-col gap-3">
     <h2 class="font-label-md text-label-md font-bold uppercase tracking-wider text-on-surface-variant">Resume source</h2>
     <p class="font-body-sm text-body-sm text-on-surface-variant">
@@ -61,9 +78,40 @@
 const jdInput = document.getElementById("jd-input");
 const charCount = document.getElementById("char-count");
 const submitBtn = document.getElementById("submit-btn");
+const recipientInput = document.getElementById("recipient-input");
+const recipientHint = document.getElementById("recipient-hint");
+
+// Mirror src/email_extractor.py: same regex, same no-reply filter.
+const EMAIL_RE = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g;
+const NOREPLY_PATTERNS = ["noreply", "no-reply", "donotreply", "do-not-reply"];
+let userEditedRecipient = false;
+
+function detectEmail(text) {
+  const matches = text.match(EMAIL_RE) || [];
+  for (const addr of matches) {
+    const lower = addr.toLowerCase();
+    if (!NOREPLY_PATTERNS.some((p) => lower.includes(p))) return addr;
+  }
+  return null;
+}
+
+function syncRecipientFromJD() {
+  if (userEditedRecipient) return;
+  const found = detectEmail(jdInput.value);
+  recipientInput.value = found || "";
+  recipientHint.textContent = found
+    ? "Auto-filled from JD — editable."
+    : (jdInput.value.trim() ? "No email found in JD — enter one above." : "");
+}
+
+recipientInput.addEventListener("input", () => {
+  userEditedRecipient = true;
+  recipientHint.textContent = "Manual override — will be used as the recipient.";
+});
 
 function updateCount() {
   charCount.textContent = `${jdInput.value.length} chars`;
+  syncRecipientFromJD();
 }
 jdInput.addEventListener("input", updateCount);
 
@@ -127,10 +175,12 @@ submitBtn.addEventListener("click", async () => {
     toast("Paste a job description first.", "error");
     return;
   }
+  const recipient = recipientInput.value.trim();
+  const ats = document.getElementById("ats-toggle").checked;
   submitBtn.disabled = true;
   submitBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Starting…';
   try {
-    const job = await API.createJob(jd);
+    const job = await API.createJob(jd, recipient, ats);
     window.location.href = `/progress/${job.id}`;
   } catch (e) {
     toast(e.message, "error");

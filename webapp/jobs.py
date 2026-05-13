@@ -46,6 +46,7 @@ class Job:
     email_subject: str = ""
     email_body: str = ""
     pdf_path: str = ""
+    ats: bool = False
     created_at: str = field(default_factory=_now_iso)
     updated_at: str = field(default_factory=_now_iso)
     sent_at: str = ""
@@ -138,15 +139,23 @@ def _run(job_id: str) -> None:
     job.step = 1
     job.step_label = STEPS[1][1]
     _save(job)
-    try:
-        recipient, company = email_extractor.extract_recipient(job.jd)
-    except email_extractor.NoRecipientFound as e:
-        job.status = "error"
-        job.error = str(e)
-        _save(job)
-        return
-    job.recipient = recipient
-    job.company = company or ""
+    if job.recipient:
+        # User supplied a recipient on /tailor — skip email regex, still best-effort company.
+        try:
+            company = email_extractor.guess_company(job.jd)
+        except Exception:
+            company = None
+        job.company = company or ""
+    else:
+        try:
+            recipient, company = email_extractor.extract_recipient(job.jd)
+        except email_extractor.NoRecipientFound as e:
+            job.status = "error"
+            job.error = str(e)
+            _save(job)
+            return
+        job.recipient = recipient
+        job.company = company or ""
 
     job.step = 2
     job.step_label = STEPS[2][1]
@@ -185,7 +194,7 @@ def _run(job_id: str) -> None:
     job.step = 5
     job.step_label = STEPS[5][1]
     _save(job)
-    pdf_default = pdf_writer.render(job.resume_text, job.company or None)
+    pdf_default = pdf_writer.render(job.resume_text, job.company or None, ats=job.ats)
     # Move/copy PDF into the job's own directory so each job keeps its own copy.
     target = _job_dir(job.id) / "resume.pdf"
     target.write_bytes(Path(pdf_default).read_bytes())
@@ -197,8 +206,8 @@ def _run(job_id: str) -> None:
     _save(job)
 
 
-def submit(jd: str) -> Job:
-    job = Job(id=uuid.uuid4().hex[:12], jd=jd)
+def submit(jd: str, recipient: str | None = None, ats: bool = False) -> Job:
+    job = Job(id=uuid.uuid4().hex[:12], jd=jd, recipient=recipient or "", ats=bool(ats))
     _save(job)
 
     def _worker() -> None:
@@ -247,7 +256,8 @@ def rerender(job_id: str, resume_text: str | None = None, ats: bool = False) -> 
         return None
     if resume_text is not None:
         job.resume_text = resume_text
-    pdf_default = pdf_writer.render(job.resume_text, job.company or None, ats=ats)
+    job.ats = bool(ats)
+    pdf_default = pdf_writer.render(job.resume_text, job.company or None, ats=job.ats)
     target = _job_dir(job.id) / "resume.pdf"
     target.write_bytes(Path(pdf_default).read_bytes())
     job.pdf_path = str(target)
